@@ -82,7 +82,7 @@ def load_model(
         model = BeatThis(**hparams)
         # The PLBeatThis (LightningModule) state_dict contains the BeatThis
         # state_dict under the "model." prefix; remove the prefix to load it
-        state_dict = replace_state_dict_key(checkpoint["state_dict"], "model.", "")
+        state_dict = replace_state_dict_key(checkpoint["state_dict"], "model.", "") 
         model.load_state_dict(state_dict)
     else:
         model = BeatThis()

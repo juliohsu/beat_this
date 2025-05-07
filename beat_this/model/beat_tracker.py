@@ -185,9 +185,15 @@ class BeatThis(nn.Module):
                     module.weight[module.padding_idx].fill_(0)
 
     def forward(self, x):
+        # print(f'beathis forward init shape: {x.shape}')
         x = self.frontend(x)
+        # print(f'beathis forward frontend shape: {x.shape}')
         x = self.transformer_blocks(x)
+        # print(f'beathis forward transformer_blocks shape: {x.shape}')
         x = self.task_heads(x)
+        # print(f'beathis forward task_heads BEATS: {x["beat"]}')
+        # print(f'countable BEATS: {torch.sum(x["beat"] > 0)}')
+        # print(f'beathis forward task_heads DOWNBEATS (shape, {x["downbeat"].shape}): {x["downbeat"]}')
         return x
 
     def _load_from_state_dict(self, state_dict, prefix, *args, **kwargs):

@@ -9,6 +9,7 @@ from pytorch_lightning.loggers import WandbLogger
 from beat_this.dataset import BeatDataModule
 from beat_this.model.pl_module import PLBeatThis
 
+from launch_scripts.compute_paper_metrics import plmodel_setup
 
 def main(args):
     # for repeatability
@@ -74,26 +75,37 @@ def main(args):
         "frontend": args.frontend_dropout,
         "transformer": args.transformer_dropout,
     }
-    pl_model = PLBeatThis(
-        spect_dim=128,
-        fps=50,
-        transformer_dim=args.transformer_dim,
-        ff_mult=4,
-        n_layers=args.n_layers,
-        stem_dim=32,
-        dropout=dropout,
-        lr=args.lr,
-        weight_decay=args.weight_decay,
-        pos_weights=pos_weights,
-        head_dim=32,
-        loss_type=args.loss,
-        warmup_steps=args.warmup_steps,
-        max_epochs=args.max_epochs,
-        use_dbn=args.dbn,
-        eval_trim_beats=args.eval_trim_beats,
-        sum_head=args.sum_head,
-        partial_transformers=args.partial_transformers,
-    )
+
+    # pl_model = PLBeatThis(
+    #     spect_dim=128,
+    #     fps=50,
+    #     transformer_dim=args.transformer_dim,
+    #     ff_mult=4,
+    #     n_layers=args.n_layers,
+    #     stem_dim=32,
+    #     dropout=dropout,
+    #     lr=args.lr,
+    #     weight_decay=args.weight_decay,
+    #     pos_weights=pos_weights,
+    #     head_dim=32,
+    #     loss_type=args.loss,
+    #     warmup_steps=args.warmup_steps,
+    #     max_epochs=args.max_epochs,
+    #     use_dbn=args.dbn,
+    #     eval_trim_beats=args.eval_trim_beats,
+    #     sum_head=args.sum_head,
+    #     partial_transformers=args.partial_transformers,
+    # )
+
+    # # checkpoint inicio
+    
+    # checkpoint_path = '/home/biabc/beatthis/repo_bt/beat_this/checkpoints/AAM_gtzan.ckpt'
+    checkpoint_path = 'https://cloud.cp.jku.at/index.php/s/7ik4RrBKTS273gp/download?path=%2F&files=final0.ckpt'
+    checkpoint = torch.load(checkpoint_path, map_location='cuda')
+
+    pl_model,trainer = plmodel_setup(checkpoint, args.eval_trim_beats, args.dbn, args.gpu)
+    # #checkpoint fim 
+
     for part in args.compile:
         if hasattr(pl_model.model, part):
             setattr(pl_model.model, part, torch.compile(getattr(pl_model.model, part)))

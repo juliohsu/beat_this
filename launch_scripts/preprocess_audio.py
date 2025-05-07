@@ -15,6 +15,8 @@ from tqdm import tqdm
 
 from beat_this.dataset.augment import precomputed_augmentation_filenames
 from beat_this.preprocessing import LogMelSpect, load_audio
+from beat_this.custom_cqt.custom_preprocessing import CQTNotesSpectNN
+from beat_this.custom_vqt.custom_preprocessing import VQTNotesSpectNN
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
@@ -43,7 +45,7 @@ def save_spectrogram(path, spectrogram, dtype=np.float16):
 
 
 class SpectCreation:
-    def __init__(self, pitch_shift, time_stretch, audio_sr, mel_args, verbose=False):
+    def __init__(self, pitch_shift, time_stretch, audio_sr, spect_args, verbose=False, spect_type='mel'):
         """
         Initialize the SpectCreation class. This assume that the audio files have been preprocessed with all the requested augmentations and are stored in the `mono_tracks` directory with the proper naming defined in AudioPreprocessing.
 
@@ -53,8 +55,9 @@ class SpectCreation:
             time_stretch (tuple or None): A tuple specifying the min/max and stride percentage to consider from the available audio files.
                                         If None, time stretching augmentation files will not be considered.
             audio_sr (int): The sample rate of the audio.
-            mel_args (dict): A dictionary of arguments to be passed to the MelSpectrogram class.
+            spect_args (dict): A dictionary of arguments to be passed to the Choices Spectrogram class.
             verbose (bool, optional): Whether to print verbose information. Defaults to False.
+            spect_type (str, optional): The type of spectrogram to create. Defaults to 'mel'.
         """
         super(SpectCreation, self).__init__()
         # define the directories
@@ -62,6 +65,7 @@ class SpectCreation:
         self.mono_tracks_dir = self.audio_dir / "mono_tracks"
         self.spectrograms_dir = self.audio_dir / "spectrograms"
         self.annotations_dir = BASEPATH / "data" / "annotations"
+        self.spect_type = spect_type
 
         if verbose:
             print("Audio dir: ", self.audio_dir.absolute())
@@ -71,8 +75,13 @@ class SpectCreation:
         self.verbose = verbose
         # remember the audio metadata
         self.audio_sr = audio_sr
-        # create the mel spectrogram class
-        self.logspect_class = LogMelSpect(audio_sr, **mel_args)
+        # create the choices spectrogram class
+        if spect_type == 'cqt':
+            self.logspect_class = CQTNotesSpectNN(audio_sr, **spect_args)
+        elif spect_type == 'vqt':
+            self.logspect_class = VQTNotesSpectNN(audio_sr, **spect_args)
+        else:
+            self.logspect_class = LogMelSpect(audio_sr, **spect_args)
         # define the augmentations
         self.augmentations = {}
         if pitch_shift is not None:
@@ -398,7 +407,7 @@ def ints(value):
     return value and tuple(map(int, value.split(":")))
 
 
-def main(orig_audio_paths, pitch_shift, time_stretch, verbose):
+def main(orig_audio_paths, pitch_shift, time_stretch, verbose, spect_type):
     # preprocess audio
     dp = AudioPreprocessing(
         orig_audio_paths=orig_audio_paths,
@@ -410,23 +419,25 @@ def main(orig_audio_paths, pitch_shift, time_stretch, verbose):
     )
     dp.preprocess_audio()
 
-    # compute spectrograms
-    mel_args = dict(
-        n_fft=1024,
-        hop_length=441,
-        f_min=30,
-        f_max=11000,
-        n_mels=128,
-        mel_scale="slaney",
-        normalized="frame_length",
-        power=1,
-    )
+    # check and compute spectrograms
+    if (spect_type == 'mel'):
+        spect_args = dict(
+            n_fft=1024,
+            hop_length=441,
+            f_min=30,
+            f_max=11000,
+            n_mels=128,
+            mel_scale="slaney",
+            normalized="frame_length",
+            power=1,
+        )
     sc = SpectCreation(
         pitch_shift=pitch_shift,
         time_stretch=time_stretch,
         audio_sr=22050,
-        mel_args=mel_args,
+        spect_args=spect_args,
         verbose=verbose,
+        spect_type=spect_type,
     )
     sc.create_spects()
 
@@ -466,6 +477,13 @@ if __name__ == "__main__":
         help="time stretch in percentage and stride (default: %(default)s)",
     )
     parser.add_argument("--verbose", action="store_true", help="verbose output")
+    parser.add_argument(
+        "--spect_type",
+        type=str,
+        default="mel",
+        choices=["mel", "cqt", "vqt"],
+        help="type of spectrogram to create (default: %(default)s)",
+    )
     args = parser.parse_args()
 
     main(
@@ -473,4 +491,5 @@ if __name__ == "__main__":
         ints(args.pitch_shift),
         ints(args.time_stretch),
         args.verbose,
+        args.spect_type,
     )

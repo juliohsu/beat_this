@@ -316,6 +316,7 @@ class PLBeatThis(LightningModule):
         state_dict = replace_state_dict_key(state_dict, "_orig_mod.", "")
         return state_dict
 
+# aguardar camada de congelamento de bia aqui
 
 class Metrics:
     def __init__(self, eval_trim_beats: int) -> None:
