@@ -61,10 +61,10 @@ class SpectCreation:
         """
         super(SpectCreation, self).__init__()
         # define the directories
-        self.audio_dir = BASEPATH / "data" / "audio"
+        self.audio_dir = BASEPATH / "beat_this" / "data" / "audio"
         self.mono_tracks_dir = self.audio_dir / "mono_tracks"
         self.spectrograms_dir = self.audio_dir / "spectrograms"
-        self.annotations_dir = BASEPATH / "data" / "annotations"
+        self.annotations_dir = BASEPATH / "beat_this" / "data" / "annotations"
         self.spect_type = spect_type
 
         if verbose:
@@ -192,8 +192,8 @@ class AudioPreprocessing(object):
             verbose (bool, optional): Whether to print verbose information. Defaults to False.
         """
         super(AudioPreprocessing, self).__init__()
-        self.audio_dir = BASEPATH / "data" / "audio"
-        self.annotation_dir = BASEPATH / "data" / "annotations"
+        self.audio_dir = BASEPATH / "beat_this" / "data" / "audio"
+        self.annotation_dir = BASEPATH / "beat_this" / "data" / "annotations"
         # load data_dir from audio_path.csv which has the format: dataset_name, audio_path
         self.audio_dirs = {
             row[0]: row[1] for row in pd.read_csv(orig_audio_paths, header=None).values
@@ -460,7 +460,7 @@ if __name__ == "__main__":
         "--orig_audio_paths",
         type=str,
         help="path to the file with the original audio paths for each dataset (default: %(default)s)",
-        default="data/audio_paths.csv",
+        default="beat_this/data/audio_paths.csv",
     )
     parser.add_argument(
         "--pitch_shift",

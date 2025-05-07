@@ -13,3 +13,5 @@ build/
 *.mp3
 *.flac
 *.beats
+
+cuda/
