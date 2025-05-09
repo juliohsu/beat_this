@@ -114,7 +114,7 @@ class CQTNotesSpectNN(torch.nn.Module):
     def __init__(
         self,
         sample_rate=22050,
-        hop_length=512,
+        hop_length=441,
         n_bins=128,
         bins_per_octave=24,
         f_min=30.0,

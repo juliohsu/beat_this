@@ -4,7 +4,7 @@ Loss definitions for the Beat This! beat tracker.
 
 import torch
 import torch.nn.functional as F
-
+from typing import Optional
 
 class MaskedBCELoss(torch.nn.Module):
     """
@@ -28,7 +28,7 @@ class MaskedBCELoss(torch.nn.Module):
         self,
         preds: torch.Tensor,
         targets: torch.Tensor,
-        mask: torch.Tensor | None = None,
+        mask: Optional[torch.Tensor] = None,
     ):
         return F.binary_cross_entropy_with_logits(
             preds, targets, weight=mask, pos_weight=self.pos_weight
@@ -74,7 +74,7 @@ class ShiftTolerantBCELoss(torch.nn.Module):
         self,
         preds: torch.Tensor,
         targets: torch.Tensor,
-        mask: torch.Tensor | None = None,
+        mask: Optional[torch.Tensor] = None,
     ):
         # spread preds and crop targets to match
         spreaded_preds = self.crop(self.spread(preds))

@@ -5,7 +5,7 @@ with open(os.path.join(os.path.dirname(__file__), "README.md")) as f:
     long_description = f.read()
 setup(
     name="beat_this",
-    version="0.1",
+    version="0.2",
     description="Beat This! beat tracker",
     long_description=long_description,
     long_description_content_type="text/markdown",

@@ -6,10 +6,23 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
-from beat_this.dataset import BeatDataModule
-from beat_this.model.pl_module import PLBeatThis
+from beat_this.beat_this.dataset import BeatDataModule
+from beat_this.beat_this.model.pl_module import PLBeatThis
+from beat_this.beat_this.inference import load_checkpoint
+
+from beat_this.data.audio.
 
 from launch_scripts.compute_paper_metrics import plmodel_setup
+
+def freeze_model_component(model, component_name):
+    """Freeze a specific component of the model by setting requires_grad=False for all parameters."""
+    if hasattr(model.model, component_name):
+        component = getattr(model.model, component_name)
+        for param in component.parameters():
+            param.requires_grad = False
+        print(f"Freezing {component_name} component")
+    else:
+        print(f"Warning: Component {component_name} not found in model")
 
 def main(args):
     # for repeatability
@@ -32,9 +45,11 @@ def main(args):
         torch.backends.cuda.enable_mem_efficient_sdp(False)
         torch.backends.cuda.enable_math_sdp(False)
 
-    data_dir = Path(__file__).parent.parent.relative_to(Path.cwd()) / "data"
+    # print('parent file', Path(__file__).parent.relative_to(Path.cwd()) / "data")
+    data_dir = Path(__file__).parent.relative_to(Path.cwd()) / "data"
+    # data_dir2 = Path(__file__).parent.parent.relative_to(Path.cwd()) / "data"
     checkpoint_dir = (
-        Path(__file__).parent.parent.relative_to(Path.cwd()) / "checkpoints"
+        Path(__file__).parent.relative_to(Path.cwd()) / "checkpoints"
     )
     augmentations = {}
     if args.tempo_augmentation:
@@ -76,35 +91,54 @@ def main(args):
         "transformer": args.transformer_dropout,
     }
 
-    # pl_model = PLBeatThis(
-    #     spect_dim=128,
-    #     fps=50,
-    #     transformer_dim=args.transformer_dim,
-    #     ff_mult=4,
-    #     n_layers=args.n_layers,
-    #     stem_dim=32,
-    #     dropout=dropout,
-    #     lr=args.lr,
-    #     weight_decay=args.weight_decay,
-    #     pos_weights=pos_weights,
-    #     head_dim=32,
-    #     loss_type=args.loss,
-    #     warmup_steps=args.warmup_steps,
-    #     max_epochs=args.max_epochs,
-    #     use_dbn=args.dbn,
-    #     eval_trim_beats=args.eval_trim_beats,
-    #     sum_head=args.sum_head,
-    #     partial_transformers=args.partial_transformers,
-    # )
-
-    # # checkpoint inicio
-    
-    # checkpoint_path = '/home/biabc/beatthis/repo_bt/beat_this/checkpoints/AAM_gtzan.ckpt'
-    checkpoint_path = 'https://cloud.cp.jku.at/index.php/s/7ik4RrBKTS273gp/download?path=%2F&files=final0.ckpt'
-    checkpoint = torch.load(checkpoint_path, map_location='cuda')
-
-    pl_model,trainer = plmodel_setup(checkpoint, args.eval_trim_beats, args.dbn, args.gpu)
-    # #checkpoint fim 
+    if args.checkpoint_path:
+        print(f"Loading checkpoint from {args.checkpoint_path}")
+        # Load from checkpoint for finetuning
+        checkpoint = load_checkpoint(args.checkpoint_path)
+        pl_model, _ = plmodel_setup(checkpoint, args.eval_trim_beats, args.dbn, args.gpu)
+        
+        # Update the learning rate for finetuning if specified
+        if args.finetune_lr is not None:
+            pl_model.hparams.lr = args.finetune_lr
+            print(f"Setting finetuning learning rate to {args.finetune_lr}")
+        
+        # Freeze components if specified
+        if args.freeze_frontend:
+            freeze_model_component(pl_model, "frontend")
+        
+        if args.freeze_transformer:
+            freeze_model_component(pl_model, "transformer_blocks")
+            
+        if args.freeze_heads:
+            freeze_model_component(pl_model, "task_heads")
+            
+        # Print trainable parameters count
+        total_params = sum(p.numel() for p in pl_model.parameters())
+        trainable_params = sum(p.numel() for p in pl_model.parameters() if p.requires_grad)
+        print(f"Total parameters: {total_params}")
+        print(f"Trainable parameters: {trainable_params} ({trainable_params/total_params:.2%})")
+    else:
+        # Create a new model from scratch
+        pl_model = PLBeatThis(
+            spect_dim=128,
+            fps=50,
+            transformer_dim=args.transformer_dim,
+            ff_mult=4,
+            n_layers=args.n_layers,
+            stem_dim=32,
+            dropout=dropout,
+            lr=args.lr,
+            weight_decay=args.weight_decay,
+            pos_weights=pos_weights,
+            head_dim=32,
+            loss_type=args.loss,
+            warmup_steps=args.warmup_steps,
+            max_epochs=args.max_epochs,
+            use_dbn=args.dbn,
+            eval_trim_beats=args.eval_trim_beats,
+            sum_head=args.sum_head,
+            partial_transformers=args.partial_transformers,
+        )
 
     for part in args.compile:
         if hasattr(pl_model.model, part):
@@ -282,6 +316,36 @@ if __name__ == "__main__":
         type=int,
         default=0,
         help="Seed for the random number generators.",
+    )
+    parser.add_argument(
+        "--checkpoint-path", 
+        type=str, 
+        default=None,
+        help="Path to checkpoint for finetuning. Can be a local path or a URL."
+    )
+    parser.add_argument(
+        "--finetune-lr", 
+        type=float, 
+        default=None,
+        help="Learning rate to use when finetuning from a checkpoint. If not specified, uses the learning rate from the checkpoint."
+    )
+    parser.add_argument(
+        "--freeze-frontend",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help="Freeze the frontend components during finetuning",
+    )
+    parser.add_argument(
+        "--freeze-transformer",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help="Freeze the transformer blocks during finetuning",
+    )
+    parser.add_argument(
+        "--freeze-heads",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help="Freeze the task heads during finetuning",
     )
 
     args = parser.parse_args()

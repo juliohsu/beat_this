@@ -63,7 +63,16 @@ class SpectCreation:
         # define the directories
         self.audio_dir = BASEPATH / "beat_this" / "data" / "audio"
         self.mono_tracks_dir = self.audio_dir / "mono_tracks"
-        self.spectrograms_dir = self.audio_dir / "spectrograms"
+
+        # create directories depending spectrogram type
+        if spect_type == 'cqt':
+            spect_dir_x = "cqt_spectrograms"
+        elif spect_type == 'vqt':
+            spect_dir_x = "vqt_spectrograms"
+        else:
+            spect_dir_x = "mel_spectrograms"
+        self.spectrograms_dir = self.audio_dir / spect_dir_x
+
         self.annotations_dir = BASEPATH / "beat_this" / "data" / "annotations"
         self.spect_type = spect_type
 
@@ -75,13 +84,15 @@ class SpectCreation:
         self.verbose = verbose
         # remember the audio metadata
         self.audio_sr = audio_sr
+
         # create the choices spectrogram class
         if spect_type == 'cqt':
-            self.logspect_class = CQTNotesSpectNN(audio_sr, **spect_args)
+            self.logspect_class = CQTNotesSpectNN(audio_sr)
         elif spect_type == 'vqt':
-            self.logspect_class = VQTNotesSpectNN(audio_sr, **spect_args)
+            self.logspect_class = VQTNotesSpectNN(audio_sr)
         else:
             self.logspect_class = LogMelSpect(audio_sr, **spect_args)
+
         # define the augmentations
         self.augmentations = {}
         if pitch_shift is not None:
@@ -159,7 +170,7 @@ class SpectCreation:
                 assert (
                     sr == self.audio_sr
                 ), f"Sample rate mismatch: {sr} != {self.audio_sr}"
-                # compute the mel spectrogram and scale the values with log(1 + 1000 * x)
+                # compute the spectrogram and scale the values with log(1 + 1000 * x)
                 spect = self.logspect_class(torch.tensor(waveform, dtype=torch.float32))
                 # save the spectrogram as numpy array
                 spect_path.parent.mkdir(parents=True, exist_ok=True)
@@ -409,19 +420,18 @@ def ints(value):
 
 def main(orig_audio_paths, pitch_shift, time_stretch, verbose, spect_type):
     # preprocess audio
-    dp = AudioPreprocessing(
-        orig_audio_paths=orig_audio_paths,
-        out_sr=22050,
-        aug_sr=44100,
-        pitch_shift=pitch_shift,
-        time_stretch=time_stretch,
-        verbose=verbose,
-    )
-    dp.preprocess_audio()
+    # dp = AudioPreprocessing(
+    #     orig_audio_paths=orig_audio_paths,
+    #     out_sr=22050,
+    #     aug_sr=44100,
+    #     pitch_shift=pitch_shift,
+    #     time_stretch=time_stretch,
+    #     verbose=verbose,
+    # )
+    # dp.preprocess_audio()
 
     # check and compute spectrograms
-    if (spect_type == 'mel'):
-        spect_args = dict(
+    spect_args = dict(
             n_fft=1024,
             hop_length=441,
             f_min=30,
@@ -431,6 +441,7 @@ def main(orig_audio_paths, pitch_shift, time_stretch, verbose, spect_type):
             normalized="frame_length",
             power=1,
         )
+    
     sc = SpectCreation(
         pitch_shift=pitch_shift,
         time_stretch=time_stretch,
@@ -481,7 +492,7 @@ if __name__ == "__main__":
         "--spect_type",
         type=str,
         default="mel",
-        choices=["mel", "cqt", "vqt"],
+        choices=["cqt", "vqt", "mel"],
         help="type of spectrogram to create (default: %(default)s)",
     )
     args = parser.parse_args()

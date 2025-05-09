@@ -13,5 +13,6 @@ build/
 *.mp3
 *.flac
 *.beats
-
+*.npy
+*.npz
 cuda/
