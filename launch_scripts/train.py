@@ -6,11 +6,9 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
-from beat_this.beat_this.dataset import BeatDataModule
-from beat_this.beat_this.model.pl_module import PLBeatThis
-from beat_this.beat_this.inference import load_checkpoint
-
-from beat_this.data.audio.
+from beat_this.dataset import BeatDataModule
+from beat_this.model.pl_module import PLBeatThis
+from beat_this.inference import load_checkpoint
 
 from launch_scripts.compute_paper_metrics import plmodel_setup
 
@@ -46,11 +44,13 @@ def main(args):
         torch.backends.cuda.enable_math_sdp(False)
 
     # print('parent file', Path(__file__).parent.relative_to(Path.cwd()) / "data")
-    data_dir = Path(__file__).parent.relative_to(Path.cwd()) / "data"
+    data_dir = Path("/home/julio.hsu/beat_this/beat_this/data")
+    print('data_dir', data_dir)
     # data_dir2 = Path(__file__).parent.parent.relative_to(Path.cwd()) / "data"
     checkpoint_dir = (
         Path(__file__).parent.relative_to(Path.cwd()) / "checkpoints"
     )
+    print('checkpoint_dir', checkpoint_dir)
     augmentations = {}
     if args.tempo_augmentation:
         augmentations["tempo"] = {"min": -20, "max": 20, "stride": 4}
