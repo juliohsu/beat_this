@@ -3,14 +3,37 @@ from pathlib import Path
 
 import torch
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, Callback
 from pytorch_lightning.loggers import WandbLogger
 
 from beat_this.dataset import BeatDataModule
 from beat_this.model.pl_module import PLBeatThis
-from beat_this.inference import load_checkpoint
 
 from launch_scripts.compute_paper_metrics import plmodel_setup
+
+import requests
+import os
+
+class ModelGradualUnfreezing(Callback):
+    def __init__(self, unfreeze_schedule):
+        """Gradually unfreeze model components during training."""
+        self.unfreeze_schedule = unfreeze_schedule
+    def on_train_epoch_start(self, trainer, pl_module):
+        current_epoch = trainer.current_epoch
+        while self.unfreeze_schedule and self.unfreeze_schedule[0][0] == current_epoch:
+            print('Entering unfreeze schedule')
+            _, component_name = self.unfreeze_schedule.pop(0)
+            self.unfreeze_model_component(pl_module, component_name, current_epoch)
+            # total_trainable_params = sum(p.numel() for p in pl_module.model.parameters() if p.requires_grad)
+            # print(f'total trainable params size: {total_trainable_params}...')
+    def unfreeze_model_component(self, model, component_name, current_epoch):
+        if hasattr(model.model, component_name):
+            component = getattr(model.model, component_name)
+            for param in component.parameters():
+                param.requires_grad = True
+            print(f"Unfroze {component_name} at epoch {current_epoch}")
+        else:
+            print(f"Warning: Component {component_name} not found to unfreeze")
 
 def freeze_model_component(model, component_name):
     """Freeze a specific component of the model by setting requires_grad=False for all parameters."""
@@ -31,8 +54,9 @@ def main(args):
 
     params_str = f"{'noval ' if not args.val else ''}{'hung ' if args.hung_data else ''}{'fold' + str(args.fold) + ' ' if args.fold is not None else ''}{args.loss}-h{args.transformer_dim}-aug{args.tempo_augmentation}{args.pitch_augmentation}{args.mask_augmentation}{' nosumH ' if not args.sum_head else ''}{' nopartialT ' if not args.partial_transformers else ''}"
     if args.logger == "wandb":
+        print("Using wandb logger.")
         logger = WandbLogger(
-            project="beat_this", name=f"{args.name} {params_str}".strip()
+            project="beat_this_cqt", name=f"{args.name} {params_str}".strip()
         )
     else:
         logger = None
@@ -43,14 +67,11 @@ def main(args):
         torch.backends.cuda.enable_mem_efficient_sdp(False)
         torch.backends.cuda.enable_math_sdp(False)
 
-    # print('parent file', Path(__file__).parent.relative_to(Path.cwd()) / "data")
-    data_dir = Path("/home/julio.hsu/beat_this/beat_this/data")
-    print('data_dir', data_dir)
-    # data_dir2 = Path(__file__).parent.parent.relative_to(Path.cwd()) / "data"
+    data_dir = Path(__file__).parent.parent.relative_to(Path.cwd()) / "beat_this/data"
+    print("Data directory:", data_dir)
     checkpoint_dir = (
-        Path(__file__).parent.relative_to(Path.cwd()) / "checkpoints"
+        Path(__file__).parent.parent.relative_to(Path.cwd()) / "checkpoints"
     )
-    print('checkpoint_dir', checkpoint_dir)
     augmentations = {}
     if args.tempo_augmentation:
         augmentations["tempo"] = {"min": -20, "max": 20, "stride": 4}
@@ -91,34 +112,24 @@ def main(args):
         "transformer": args.transformer_dropout,
     }
 
-    if args.checkpoint_path:
-        print(f"Loading checkpoint from {args.checkpoint_path}")
-        # Load from checkpoint for finetuning
-        checkpoint = load_checkpoint(args.checkpoint_path)
+    if args.fine_tune:    
+
+        print("Fine-tuning the model from a checkpoint.")
+        checkpoint_path = '/home/julio.hsu/beat_this/launch_scripts/checkpoints/checkpoint_author.ckpt'
+        if not os.path.isfile(checkpoint_path):
+            checkpoint_url_author = 'https://cloud.cp.jku.at/index.php/s/7ik4RrBKTS273gp/download?path=%2F&files=final0.ckpt'
+            with open(checkpoint_path, 'wb') as f:
+                response = requests.get(checkpoint_url_author)
+                f.write(response.content)
+        checkpoint = torch.load(checkpoint_path, map_location='cuda')
         pl_model, _ = plmodel_setup(checkpoint, args.eval_trim_beats, args.dbn, args.gpu)
-        
-        # Update the learning rate for finetuning if specified
-        if args.finetune_lr is not None:
-            pl_model.hparams.lr = args.finetune_lr
-            print(f"Setting finetuning learning rate to {args.finetune_lr}")
-        
-        # Freeze components if specified
-        if args.freeze_frontend:
-            freeze_model_component(pl_model, "frontend")
-        
-        if args.freeze_transformer:
-            freeze_model_component(pl_model, "transformer_blocks")
-            
-        if args.freeze_heads:
-            freeze_model_component(pl_model, "task_heads")
-            
-        # Print trainable parameters count
-        total_params = sum(p.numel() for p in pl_model.parameters())
-        trainable_params = sum(p.numel() for p in pl_model.parameters() if p.requires_grad)
-        print(f"Total parameters: {total_params}")
-        print(f"Trainable parameters: {trainable_params} ({trainable_params/total_params:.2%})")
+
+        # freeze_model_component(pl_model, "transformer_blocks")
+        # freeze_model_component(pl_model, "task_heads")
+
     else:
-        # Create a new model from scratch
+
+        print("Training a new model.")
         pl_model = PLBeatThis(
             spect_dim=128,
             fps=50,
@@ -155,6 +166,10 @@ def main(args):
             dirpath=str(checkpoint_dir),
             filename=f"{args.name} S{args.seed} {params_str}".strip(),
         )
+    )
+    # gradually unfreeze the model components
+    callbacks.append(
+        ModelGradualUnfreezing([(10, 'transformer_blocks'), (20, 'task_heads')],)
     )
 
     trainer = Trainer(
@@ -228,7 +243,7 @@ if __name__ == "__main__":
         "--max-epochs", type=int, default=100, help="max epochs for training"
     )
     parser.add_argument(
-        "--batch-size", type=int, default=8, help="batch size for training"
+        "--batch-size", type=int, default=10, help="batch size for training"
     )
     parser.add_argument("--accumulate-grad-batches", type=int, default=8)
     parser.add_argument(
@@ -317,35 +332,12 @@ if __name__ == "__main__":
         default=0,
         help="Seed for the random number generators.",
     )
+    
+    # customize argument for fine-tuning
     parser.add_argument(
-        "--checkpoint-path", 
-        type=str, 
-        default=None,
-        help="Path to checkpoint for finetuning. Can be a local path or a URL."
-    )
-    parser.add_argument(
-        "--finetune-lr", 
-        type=float, 
-        default=None,
-        help="Learning rate to use when finetuning from a checkpoint. If not specified, uses the learning rate from the checkpoint."
-    )
-    parser.add_argument(
-        "--freeze-frontend",
-        default=False,
-        action=argparse.BooleanOptionalAction,
-        help="Freeze the frontend components during finetuning",
-    )
-    parser.add_argument(
-        "--freeze-transformer",
-        default=False,
-        action=argparse.BooleanOptionalAction,
-        help="Freeze the transformer blocks during finetuning",
-    )
-    parser.add_argument(
-        "--freeze-heads",
-        default=False,
-        action=argparse.BooleanOptionalAction,
-        help="Freeze the task heads during finetuning",
+        "--fine-tune",
+        action='store_true',
+        help="Fine-tune the model from a checkpoint.",
     )
 
     args = parser.parse_args()
