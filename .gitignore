@@ -8,6 +8,7 @@ wandb/
 .vscode/
 beat_this.egg-info/
 build/
+moises_results/
 
 *.wav
 *.mp3
@@ -16,3 +17,15 @@ build/
 *.npy
 *.npz
 cuda/
+
+*.pdf
+*.csv
+*.xml
+*.zip
+*.zip*
+*.wav*
+*.mp3*
+*.flac*
+*.beats*
+*.npy*
+*.npz*

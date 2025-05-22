@@ -420,15 +420,15 @@ def ints(value):
 
 def main(orig_audio_paths, pitch_shift, time_stretch, verbose, spect_type):
     # preprocess audio
-    # dp = AudioPreprocessing(
-    #     orig_audio_paths=orig_audio_paths,
-    #     out_sr=22050,
-    #     aug_sr=44100,
-    #     pitch_shift=pitch_shift,
-    #     time_stretch=time_stretch,
-    #     verbose=verbose,
-    # )
-    # dp.preprocess_audio()
+    dp = AudioPreprocessing(
+        orig_audio_paths=orig_audio_paths,
+        out_sr=22050,
+        aug_sr=44100,
+        pitch_shift=pitch_shift,
+        time_stretch=time_stretch,
+        verbose=verbose,
+    )
+    dp.preprocess_audio()
 
     # check and compute spectrograms
     spect_args = dict(

@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torchaudio
 import librosa
-from nnAudio.features import VQT, CQT
+from beat_this.custom_vqt.custom_preprocessing import VQT, CQT
 
 def load_audio(path, dtype="float64"):
     try:
@@ -30,7 +30,7 @@ class LogMelSpectTorch(torch.nn.Module):
         self,
         sample_rate=22050,
         n_fft=1024,
-        hop_length=512,
+        hop_length=441,
         f_min=30,
         f_max=11000,
         n_mels=128,
@@ -64,7 +64,7 @@ class CQTNotesSpectLibrosa(torch.nn.Module):
     def __init__(
         self,
         sample_rate=22050,
-        hop_length=512,
+        hop_length=441,
         n_bins=84,
         bins_per_octave=12,
         f_min=30.0,
@@ -120,11 +120,12 @@ class CQTNotesSpectNN(torch.nn.Module):
         f_min=30.0,
         power=1,
         log_multiplier=1000,
-        device="cpu",
+        device="cpu"
     ):
         super().__init__()
         self.log_multiplier = log_multiplier
-        self.cqt = CQT(sr=sample_rate, hop_length=hop_length, n_bins=n_bins, bins_per_octave=bins_per_octave).to(device)
+        self.cqt = CQT(
+            sr=sample_rate, hop_length=hop_length, n_bins=n_bins, bins_per_octave=bins_per_octave).to(device)
 
     def forward(self, x):
         """
@@ -142,7 +143,7 @@ class VQTNotesSpectLibrosa(torch.nn.Module):
     def __init__(
         self,
         sample_rate=22050,
-        hop_length=512,
+        hop_length=441,
         n_bins=128,
         bins_per_octave=24,
         f_min=30.0,
@@ -196,7 +197,7 @@ class VQTNotesSpectCustom(torch.nn.Module):
         self,
         sample_rate=22050,
         n_fft=1024,
-        hop_length=512,
+        hop_length=441,
         f_min=30,
         f_max=10000,
         n_bins=128,
@@ -295,7 +296,7 @@ class VQTNotesSpectNN(torch.nn.Module):
     def __init__(
         self,
         sample_rate=22050,
-        hop_length=512,
+        hop_length=441,
         n_bins=128,
         bins_per_octave=24,
         f_min=30.0,

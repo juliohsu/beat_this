@@ -1,0 +1,18 @@
+Groove Midi
+===========
+
+Groove MIDI dataset from Magenta [1], processed according to Francesco Foscarin [2] (see scripts directory) to extract beat annotations.
+
+Annotation repo: https://github.com/CPJKU/beat_this_annotations
+
+8-fold partitions were also taken from this repo.
+
+References
+----------
+[1] Jon Gillick, Adam Roberts, Jesse Engel, Douglas Eck, and David Bamman.  
+    "Learning to Groove with Inverse Sequence Transformations." 
+    International Conference on Machine Learning (ICML), 2019.
+[2] F. Foscarin, J. Schlüter, and G. Widmer, 
+    “Beat this! Accurate beat tracking without DBN postprocessing,” 
+    Jul. 31, 2024, arXiv: arXiv:2407.21658. doi: 10.48550/arXiv.2407.21658.
+

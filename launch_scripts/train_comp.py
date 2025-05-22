@@ -1,5 +1,8 @@
 import argparse
 from pathlib import Path
+import sys
+import os
+from datetime import datetime
 
 # import os
 # os.environ["FLASH_ATTENTION_FORCE_DISABLE"] = "1"
@@ -20,6 +23,22 @@ from beat_this.inference import load_checkpoint
 
 from launch_scripts.compute_paper_metrics import plmodel_setup
 
+# Simple class to tee output to both stdout/stderr and a file
+class Tee:
+    def __init__(self, original_stream, file):
+        self.original_stream = original_stream
+        self.file = file
+        
+    def write(self, message):
+        self.original_stream.write(message)
+        self.file.write(message)
+        self.file.flush()  # Make sure log is written immediately
+        
+    def flush(self):
+        self.original_stream.flush()
+        self.file.flush()
+        
+        
 def freeze_model_component(model, component_name):
     """Freeze a specific component of the model by setting requires_grad=False for all parameters."""
     if hasattr(model.model, component_name):
@@ -40,7 +59,7 @@ def main(args):
     params_str = f"{'noval ' if not args.val else ''}{'hung ' if args.hung_data else ''}{'fold' + str(args.fold) + ' ' if args.fold is not None else ''}{args.loss}-h{args.transformer_dim}-aug{args.tempo_augmentation}{args.pitch_augmentation}{args.mask_augmentation}{' nosumH ' if not args.sum_head else ''}{' nopartialT ' if not args.partial_transformers else ''}"
     if args.logger == "wandb":
         logger = WandbLogger(
-            project="beat_this_cqt", name=f"{args.name} {params_str}".strip()
+            entity="juliohsu", project="beat_this", name=f"{args.name} {params_str}".strip()
         )
     else:
         logger = None
@@ -99,7 +118,7 @@ def main(args):
         "transformer": args.transformer_dropout,
     }
 
-    # AUTOR
+    # JOAQUIM
     # if args.checkpoint_path:
     #     print(f"Loading checkpoint from {args.checkpoint_path}")
     #     # Load from checkpoint for finetuning
@@ -149,26 +168,26 @@ def main(args):
     #         partial_transformers=args.partial_transformers,
     #     )
 
-    # pl_model = PLBeatThis(
-    #     spect_dim=128,
-    #     fps=50,
-    #     transformer_dim=args.transformer_dim,
-    #     ff_mult=4,
-    #     n_layers=args.n_layers,
-    #     stem_dim=32,
-    #     dropout=dropout,
-    #     lr=args.lr,
-    #     weight_decay=args.weight_decay,
-    #     pos_weights=pos_weights,
-    #     head_dim=32,
-    #     loss_type=args.loss,
-    #     warmup_steps=args.warmup_steps,
-    #     max_epochs=100,                                               #args.max_epochs,
-    #     use_dbn=args.dbn,
-    #     eval_trim_beats=args.eval_trim_beats,
-    #     sum_head=args.sum_head,
-    #     partial_transformers=args.partial_transformers,
-    # )
+    pl_model = PLBeatThis(
+        spect_dim=128,
+        fps=50,
+        transformer_dim=args.transformer_dim,
+        ff_mult=4,
+        n_layers=args.n_layers,
+        stem_dim=32,
+        dropout=dropout,
+        lr=args.lr,
+        weight_decay=args.weight_decay,
+        pos_weights=pos_weights,
+        head_dim=32,
+        loss_type=args.loss,
+        warmup_steps=args.warmup_steps,
+        max_epochs=100,                                               #args.max_epochs,
+        use_dbn=args.dbn,
+        eval_trim_beats=args.eval_trim_beats,
+        sum_head=args.sum_head,
+        partial_transformers=args.partial_transformers,
+    )
 
     # # # checkpoint inicio BIA
     # checkpoint_path = '/home/biabc/beatthis/repo_bt/beat_this/checkpoints/AAM_gtzan.ckpt'
@@ -178,14 +197,15 @@ def main(args):
     # pl_model,trainer = plmodel_setup(checkpoint, args.eval_trim_beats, args.dbn, args.gpu)
     # # #checkpoint fim 
 
-    url = 'https://cloud.cp.jku.at/index.php/s/7ik4RrBKTS273gp/download?path=%2F&files=final0.ckpt'
-    local_path = 'final0.ckpt'
-    with open(local_path, 'wb') as f:
-        f.write(requests.get(url).content)
-    print(f"Loading checkpoint from {local_path}")
-    # Load from checkpoint for finetuning
-    checkpoint = load_checkpoint(local_path)
-    pl_model, _ = plmodel_setup(checkpoint, args.eval_trim_beats, args.dbn, args.gpu)
+    # FINETUNING JULIO
+    # url = 'https://cloud.cp.jku.at/index.php/s/7ik4RrBKTS273gp/download?path=%2F&files=final0.ckpt'
+    # local_path = 'final0.ckpt'
+    # with open(local_path, 'wb') as f:
+    #     f.write(requests.get(url).content)
+    # print(f"Loading checkpoint from {local_path}")
+    # # Load from checkpoint for finetuning
+    # checkpoint = load_checkpoint(local_path)
+    # pl_model, _ = plmodel_setup(checkpoint, args.eval_trim_beats, args.dbn, args.gpu)
     
     # Freeze components if specified
     # freeze_model_component(pl_model, "frontend")
@@ -218,7 +238,8 @@ def main(args):
     trainer = Trainer(
         max_epochs=args.max_epochs,
         accelerator="auto",
-        devices=[args.gpu],
+        devices=args.gpu,
+        strategy="ddp" if len(args.gpu) > 1 else "auto",
         num_sanity_val_steps=1,
         logger=logger,
         callbacks=callbacks,
@@ -228,14 +249,16 @@ def main(args):
         check_val_every_n_epoch=args.val_frequency,
     )
 
-#    trainer.fit(pl_model, datamodule)
+    trainer.fit(pl_model, datamodule)
     trainer.test(pl_model, datamodule)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", type=str, default="")
-    parser.add_argument("--gpu", type=int, default=0)
+    parser.add_argument("--gpu", type=int, nargs='+', default=[0],
+                    help="GPU IDs to use for training (e.g., --gpu 0 1 for using GPUs 0 and 1)")
+
     parser.add_argument(
         "--force-flash-attention", default=False, action=argparse.BooleanOptionalAction
     )
@@ -264,7 +287,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=0.0008)
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--logger", type=str, choices=["wandb", "none"], default="none")
-    parser.add_argument("--num-workers", type=int, default=8)
+    parser.add_argument("--num-workers", type=int, default=10)
     parser.add_argument("--n-heads", type=int, default=16)
     parser.add_argument("--fps", type=int, default=50, help="The spectrograms fps.")
     parser.add_argument(
@@ -286,7 +309,7 @@ if __name__ == "__main__":
         "--max-epochs", type=int, default=100, help="max epochs for training"
     )
     parser.add_argument(
-        "--batch-size", type=int, default=4, help="batch size for training"
+        "--batch-size", type=int, default=2, help="batch size for training"
     )
     parser.add_argument("--accumulate-grad-batches", type=int, default=8)
     parser.add_argument(
@@ -405,7 +428,31 @@ if __name__ == "__main__":
         action=argparse.BooleanOptionalAction,
         help="Freeze the task heads during finetuning",
     )
+    parser.add_argument(
+        "--save-logs",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help="Save terminal logs to a file in terminal_logs directory",
+    )
 
     args = parser.parse_args()
 
+    # Set up logging to file if requested
+    if args.save_logs:
+        # Create terminal_logs directory if it doesn't exist
+        os.makedirs("terminal_logs", exist_ok=True)
+        
+        # Generate log filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_filename = f"terminal_logs/train_comp_{timestamp}.log"
+        
+        # Redirect stdout and stderr to the log file
+        log_file = open(log_filename, 'w')
+        sys.stdout = Tee(sys.stdout, log_file)
+        sys.stderr = Tee(sys.stderr, log_file)
+        
+        print(f"Logging output to {log_filename}")
+    
     main(args)
+
+

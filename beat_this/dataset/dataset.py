@@ -45,7 +45,7 @@ class BeatTrackingDataset(Dataset):
         augmentations={},
         length_based_oversampling_factor=0,
     ):
-        self.spect_basepath = data_folder / "audio" / "spectrograms"
+        self.spect_basepath = data_folder / "audio" / "mel_spectrograms"
         self.annotation_basepath = data_folder / "annotations"
         self.fps = spect_fps
         self.train_length = train_length
@@ -314,11 +314,18 @@ class BeatDataModule(pl.LightningDataModule):
             self.val_items = []
             self.train_items = []
             split_file = "8-folds.split" if self.fold is not None else "single.split"
+            # Carregar os conjuntos de dados válidos do audio_paths.csv
+            valid_datasets = []
+            with open(self.data_dir / "audio_paths.csv", "r") as f:
+                for line in f:
+                    if line.strip():
+                        dataset_name = line.split(',')[0].strip()
+                        valid_datasets.append(dataset_name)
             for dataset_dir in annotation_dir.iterdir():
                 if not dataset_dir.is_dir() or not (dataset_dir / split_file).exists():
                     continue
                 dataset = dataset_dir.name
-                if dataset == self.test_set_name:
+                if dataset == self.test_set_name or dataset not in valid_datasets:
                     continue
                 split = pd.read_csv(
                     dataset_dir / split_file,

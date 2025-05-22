@@ -27,7 +27,7 @@ def load_checkpoint(checkpoint_path: str, device: str | torch.device = "cpu") ->
     try:
         # try interpreting as local file name
         weights_only = {'weights_only': True} if torch.__version__ >= "2" else {}
-        return torch.load(checkpoint_path, map_location=device, **weights_only)
+        return torch.load(checkpoint_path, map_location=device, weights_only=False)
     except FileNotFoundError:
         try:
             if not (

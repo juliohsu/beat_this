@@ -274,6 +274,7 @@ class PLBeatThis(LightningModule):
         )
         # compute the metrics
         metrics = self._compute_metrics(batch, postp_beat, postp_downbeat, step="test")
+        
         return metrics, model_prediction, batch["dataset"], batch["spect_path"]
 
     def configure_optimizers(self):

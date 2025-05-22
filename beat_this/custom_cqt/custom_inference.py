@@ -27,7 +27,7 @@ def load_checkpoint(checkpoint_path: str, device: str | torch.device = "cpu") ->
     try:
         # try interpreting as local file name
         weights_only = {'weights_only': True} if torch.__version__ >= "2" else {}
-        return torch.load(checkpoint_path, map_location=device, **weights_only)
+        return torch.load(checkpoint_path, map_location=device, weights_only=False)
     except FileNotFoundError:
         try:
             if not (
@@ -315,7 +315,7 @@ class Audio2Frames(Spect2Frames):
 
     def __init__(self, checkpoint_path="final0", device="cpu", float16=False):
         super().__init__(checkpoint_path, device, float16)
-        # self.mel_torch = LogMelSpectTorch(device=self.device)
+        #self.mel_torch = LogMelSpectTorch(device=self.device)
         self.cqt_nn = CQTNotesSpectNN(device=self.device)
         # self.vqt_nn = VQTNotesSpectNN(device=self.device)
 
@@ -327,9 +327,8 @@ class Audio2Frames(Spect2Frames):
         if sr != 22050:
             signal = soxr.resample(signal, in_rate=sr, out_rate=22050)
         signal = torch.tensor(signal, dtype=torch.float32, device=self.device)
-        print(signal.shape)
+        
         spect = self.cqt_nn(signal)
-        print(spect.shape)
         return spect
 
     def __call__(self, signal, sr):
@@ -351,6 +350,7 @@ class Audio2Beats(Audio2Frames):
     def __init__(
         self, checkpoint_path="final0", device="cpu", float16=False, dbn=False
     ):
+        print("CHECKPOINT PATH: ", checkpoint_path)
         super().__init__(checkpoint_path, device, float16)
         self.frames2beats = Postprocessor(type="dbn" if dbn else "minimal")
 
