@@ -28,6 +28,7 @@ class Tee:
     def __init__(self, original_stream, file):
         self.original_stream = original_stream
         self.file = file
+        self.encoding = original_stream.encoding  # Add encoding attribute
         
     def write(self, message):
         self.original_stream.write(message)
@@ -37,6 +38,10 @@ class Tee:
     def flush(self):
         self.original_stream.flush()
         self.file.flush()
+        
+    # Add any other attributes that might be accessed
+    def __getattr__(self, name):
+        return getattr(self.original_stream, name)
         
         
 def freeze_model_component(model, component_name):
@@ -309,7 +314,7 @@ if __name__ == "__main__":
         "--max-epochs", type=int, default=100, help="max epochs for training"
     )
     parser.add_argument(
-        "--batch-size", type=int, default=2, help="batch size for training"
+        "--batch-size", type=int, default=10, help="batch size for training"
     )
     parser.add_argument("--accumulate-grad-batches", type=int, default=8)
     parser.add_argument(

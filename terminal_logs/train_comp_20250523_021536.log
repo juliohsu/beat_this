@@ -1,0 +1,45 @@
+Logging output to terminal_logs/train_comp_20250523_021536.log
+Starting a new run with the following parameters:
+Namespace(name='mel_fold_1', gpu=[0], force_flash_attention=False, compile=['frontend', 'transformer_blocks', 'task_heads'], n_layers=6, transformer_dim=512, frontend_dropout=0.1, transformer_dropout=0.2, lr=0.0008, weight_decay=0.01, logger='wandb', num_workers=10, n_heads=16, fps=50, loss='shift_tolerant_weighted_bce', warmup_steps=1000, max_epochs=100, batch_size=10, accumulate_grad_batches=8, train_length=1500, dbn=False, eval_trim_beats=5, val_frequency=5, tempo_augmentation=True, pitch_augmentation=True, mask_augmentation=True, sum_head=True, partial_transformers=True, length_based_oversampling_factor=0.65, val=True, hung_data=False, fold=1, seed=0, checkpoint_path=None, finetune_lr=None, freeze_frontend=False, freeze_transformer=False, freeze_heads=False, save_logs=True)
+data_dir /home/julio.hsu/beat_this/beat_this/data
+checkpoint_dir launch_scripts/checkpoints
+Skipping hjdb/hjdb_a_musical_box because not all necessary spectrograms are there.
+Skipping tapcorrect/tapcorrect_081 because not all necessary spectrograms are there.Skipping tapcorrect/tapcorrect_094 because not all necessary spectrograms are there.
+
+Validation set: 424 items from: frank hainsworth hjdb jaah simac smc tapcorrect
+Skipping frank/Schubert_Impromptu_op because not all necessary spectrograms are there.
+Skipping tapcorrect/tapcorrect_006 because not all necessary spectrograms are there.Skipping tapcorrect/tapcorrect_014 because not all necessary spectrograms are there.Skipping tapcorrect/tapcorrect_021 because not all necessary spectrograms are there.Skipping tapcorrect/tapcorrect_034 because not all necessary spectrograms are there.Skipping tapcorrect/tapcorrect_036 because not all necessary spectrograms are there.Skipping tapcorrect/tapcorrect_041 because not all necessary spectrograms are there.
+Skipping tapcorrect/tapcorrect_051 because not all necessary spectrograms are there.
+Skipping tapcorrect/tapcorrect_055 because not all necessary spectrograms are there.
+Skipping tapcorrect/tapcorrect_061 because not all necessary spectrograms are there.
+
+
+Skipping tapcorrect/tapcorrect_080 because not all necessary spectrograms are there.Skipping tapcorrect/tapcorrect_088 because not all necessary spectrograms are there.
+Skipping tapcorrect/tapcorrect_087 because not all necessary spectrograms are there.
+
+Skipping tapcorrect/tapcorrect_075 because not all necessary spectrograms are there.Skipping tapcorrect/tapcorrect_045 because not all necessary spectrograms are there.Skipping tapcorrect/tapcorrect_102 because not all necessary spectrograms are there.
+
+Skipping tapcorrect/tapcorrect_083 because not all necessary spectrograms are there.
+Skipping tapcorrect/tapcorrect_090 because not all necessary spectrograms are there.
+Skipping tapcorrect/tapcorrect_052 because not all necessary spectrograms are there.
+
+
+
+
+Training set oversampled from 2986 to 7671 excerpts.
+Training set: 7671 items from: frank hainsworth hjdb jaah simac smc tapcorrect
+Using positive weights:  {'beat': 20, 'downbeat': 97}
+Total parameters: 20251712
+Trainable parameters: 20251696 (100.00%)
+Will compile model frontend
+Will compile model transformer_blocks
+Will compile model task_heads
+wandb: Currently logged in as: joaquimbr (juliohsu) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.19.11
+wandb: Run data is saved locally in ./wandb/run-20250523_021542-w74lsy2n
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run mel_fold_1 fold1 shift_tolerant_weighted_bce-h512-augTrueTrueTrue
+wandb:  View project at https://wandb.ai/juliohsu/beat_this
+wandb:  View run at https://wandb.ai/juliohsu/beat_this/runs/w74lsy2n
+Test set: 999 items from: gtzan
+Testing: |          | 0/? [00:00<?, ?it/s]Testing:   0%|          | 0/999 [00:00<?, ?it/s]Testing DataLoader 0:   0%|          | 0/999 [00:00<?, ?it/s]Testing DataLoader 0:   0%|          | 0/999 [00:05<?, ?it/s]
