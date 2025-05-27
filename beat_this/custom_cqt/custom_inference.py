@@ -369,3 +369,68 @@ class File2File(File2Beats):
     def __call__(self, audio_path, output_path):
         downbeats, beats = super().__call__(audio_path)
         save_beat_tsv(downbeats, beats, output_path)
+
+
+class EnsembleAudio2Beats(Audio2Beats):
+    """
+    Class for extracting beat and downbeat positions using an ensemble of models.
+    
+    Args:
+        checkpoint_paths (list): List of paths to model checkpoint files.
+        device (str): Device to use for inference. Default is "cpu".
+        float16 (bool): Whether to use half precision floating point arithmetic. Default is False.
+        dbn (bool): Whether to use the madmom DBN for post-processing. Default is False.
+    """
+    
+    def __init__(
+        self, checkpoint_paths, device="cpu", float16=False, dbn=False
+    ):
+        # Initialize without a checkpoint since we'll load multiple models
+        super().__init__(checkpoint_path=None, device=device, float16=float16, dbn=dbn)
+        self.models = []
+        
+        # Load all models
+        for checkpoint_path in checkpoint_paths:
+            model = load_model(checkpoint_path, self.device)
+            self.models.append(model)
+            
+    def __call__(self, signal, sr):
+        # Get the spectrogram
+        spect = self.signal2spect(signal, sr)
+        
+        # Initialize tensors for accumulating predictions
+        accumulated_beat_logits = torch.zeros(spect.shape[0], device=self.device)
+        accumulated_downbeat_logits = torch.zeros(spect.shape[0], device=self.device)
+        
+        # Get predictions from each model
+        with torch.inference_mode():
+            with torch.autocast(enabled=self.float16, device_type=self.device.type):
+                for model in self.models:
+                    model_prediction = split_predict_aggregate(
+                        spect=spect,
+                        chunk_size=1500,
+                        overlap_mode="keep_first",
+                        border_size=6,
+                        model=model,
+                    )
+                    accumulated_beat_logits += model_prediction["beat"]
+                    accumulated_downbeat_logits += model_prediction["downbeat"]
+        
+        # Average the predictions
+        beat_logits = accumulated_beat_logits / len(self.models)
+        downbeat_logits = accumulated_downbeat_logits / len(self.models)
+        
+        # Use the post-processor to get final predictions
+        return self.frames2beats(beat_logits, downbeat_logits)
+
+
+class EnsembleFile2Beats(EnsembleAudio2Beats):
+    def __call__(self, audio_path):
+        signal, sr = load_audio(audio_path)
+        return super().__call__(signal, sr)
+
+
+class EnsembleFile2File(EnsembleFile2Beats):
+    def __call__(self, audio_path, output_path):
+        downbeats, beats = super().__call__(audio_path)
+        save_beat_tsv(downbeats, beats, output_path)

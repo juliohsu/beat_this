@@ -29,3 +29,6 @@ cuda/
 *.beats*
 *.npy*
 *.npz*
+*.log
+wandb_metrics/
+fold_averages/

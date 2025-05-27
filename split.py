@@ -69,6 +69,11 @@ def criar_arquivo_8folds(pasta_arquivos, arquivo_saida="8-folds.split", seed=0, 
         seed (int, opcional): Semente para o gerador de números aleatórios. Padrão é 0.
         total_folds (int, opcional): Número total de folds. Padrão é 8.
     """
+    # Verifica se o arquivo já existe
+    if os.path.exists(arquivo_saida):
+        print(f"Arquivo '{arquivo_saida}' já existe. Pulando criação.")
+        return True
+    
     arquivos = []
     try:
         arquivos = [f.split('.')[0] for f in os.listdir(pasta_arquivos) if os.path.isfile(os.path.join(pasta_arquivos, f))]
@@ -126,6 +131,11 @@ def criar_arquivo_single_split(pasta_arquivos, arquivo_saida="single.split", pro
         proporcao_val (float, opcional): Proporção de arquivos para o conjunto de validação (0.0 a 1.0). Padrão é 0.2 (20%).
         seed (int, opcional): Semente para o gerador de números aleatórios. Padrão é 0.
     """
+    # Verifica se o arquivo já existe
+    if os.path.exists(arquivo_saida):
+        print(f"Arquivo '{arquivo_saida}' já existe. Pulando criação.")
+        return True
+    
     arquivos = []
     try:
         arquivos = [f.split('.')[0] for f in os.listdir(pasta_arquivos) if os.path.isfile(os.path.join(pasta_arquivos, f))]

@@ -3,7 +3,7 @@ import glob
 import torch
 from tqdm import tqdm
 import argparse
-from beat_this.custom_cqt.custom_inference import File2File
+from beat_this.custom_cqt.custom_inference import EnsembleFile2File
 
 def main():
     # Parse command line arguments
@@ -12,14 +12,20 @@ def main():
     parser.add_argument('--num-gpus', type=int, default=2, help='Total number of GPUs to use')
     args = parser.parse_args()
     
-    # Path to checkpoint
-    checkpoint_path = "/home/julio.hsu/beat_this/launch_scripts/checkpoints/cqt-train S0 shift_tolerant_weighted_bce-h512-augTrueTrueTrue.ckpt"
+    # Base path for checkpoints
+    checkpoint_base = "/home/julio.hsu/beat_this/launch_scripts/checkpoints"
+    
+    # Get all CQT fold checkpoints
+    checkpoint_paths = [
+        os.path.join(checkpoint_base, f"mel_fold_{i} S0 fold{i} shift_tolerant_weighted_bce-h512-augTrueTrueTrue.ckpt")
+        for i in range(8)  # Using folds 0-7
+    ]
     
     # Input GTZAN directory
     input_dir = "/home/julio.hsu/beat_this/beat_this/data/audio/gtzan"
     
-    # Output directory
-    output_dir = "/home/julio.hsu/beat_this/moises_results/train_cqt_beats"
+    # Output directory - modified to indicate ensemble
+    output_dir = "/home/julio.hsu/beat_this/moises_results/train_mel_ensemble_beats"
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -27,8 +33,8 @@ def main():
     # Get device
     device = f"cuda:{args.gpu_id}" if torch.cuda.is_available() else "cpu"
     
-    # Initialize the beat tracking model with custom CQT
-    beat_tracker = File2File(checkpoint_path=checkpoint_path, device=device)
+    # Initialize the ensemble beat tracking model
+    beat_tracker = EnsembleFile2File(checkpoint_paths=checkpoint_paths, device=device)
     
     # Get all .wav files in the GTZAN directory
     all_wav_files = glob.glob(os.path.join(input_dir, "*.wav"))
@@ -43,6 +49,7 @@ def main():
     wav_files = all_wav_files[start_idx:end_idx]
     
     print(f"GPU {args.gpu_id}: Processing {len(wav_files)} files out of {total_files} total")
+    print(f"Using ensemble of {len(checkpoint_paths)} CQT models")
     
     # Process each audio file
     for audio_path in tqdm(wav_files, desc=f"GPU {args.gpu_id} processing GTZAN files"):
@@ -53,7 +60,7 @@ def main():
         output_path = os.path.join(output_dir, f"{filename}.beats")
         
         try:
-            # Process the audio file and save the beats using custom CQT
+            # Process the audio file and save the beats using ensemble prediction
             beat_tracker(audio_path, output_path)
             print(f"Processed {filename} -> {output_path}")
         except Exception as e:

@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torchaudio
 import librosa
-from beat_this.custom_vqt.custom_preprocessing import VQT, CQT
+from beat_this.nnAudio.features import CQT, VQT
 
 def load_audio(path, dtype="float64"):
     try:

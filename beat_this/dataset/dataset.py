@@ -45,7 +45,7 @@ class BeatTrackingDataset(Dataset):
         augmentations={},
         length_based_oversampling_factor=0,
     ):
-        self.spect_basepath = data_folder / "audio" / "mel_spectrograms"
+        self.spect_basepath = data_folder / "audio" / "cqt_spectrograms"
         self.annotation_basepath = data_folder / "annotations"
         self.fps = spect_fps
         self.train_length = train_length

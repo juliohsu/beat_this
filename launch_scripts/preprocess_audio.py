@@ -471,7 +471,7 @@ if __name__ == "__main__":
         "--orig_audio_paths",
         type=str,
         help="path to the file with the original audio paths for each dataset (default: %(default)s)",
-        default="beat_this/data/audio_paths.csv",
+        default="/home/julio.hsu/beat_this/beat_this/data/audio_paths.csv",
     )
     parser.add_argument(
         "--pitch_shift",
